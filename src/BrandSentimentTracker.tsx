@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Users, Globe, Newspaper, Search, Plus, X, BarChart3, ExternalLink, Download, Briefcase } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Minus, Users, Globe, Newspaper, Search, Plus, X, BarChart3, ExternalLink, Download, Briefcase, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const BrandSentimentTracker = () => {
@@ -19,6 +19,13 @@ const BrandSentimentTracker = () => {
   const [selectedCompanies, setSelectedCompanies] = useState(['meta']);
   const [timeRange, setTimeRange] = useState('1M');
   const [selectedJobType, setSelectedJobType] = useState('All');
+
+  // API data state
+  const [apiNews, setApiNews] = useState<any>(null);
+  const [apiSentiment, setApiSentiment] = useState<any>(null);
+  const [apiJobs, setApiJobs] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [useRealData, setUseRealData] = useState(false);
 
   const timeRanges = [
     { label: '1W', value: '1W', days: 7 },
@@ -247,6 +254,49 @@ const BrandSentimentTracker = () => {
 
   const jobTypes = ['All', 'SWE', 'ENG', 'Design', 'Product'];
 
+  // Fetch real data from APIs
+  const fetchRealData = async () => {
+    if (!useRealData) return;
+
+    setLoading(true);
+    const currentCompany = companies.find(c => c.id === selectedCompany);
+    const companyName = currentCompany?.name || selectedCompany;
+
+    try {
+      // Fetch news and external sentiment
+      const newsResponse = await fetch(`/api/news?company=${encodeURIComponent(companyName)}`);
+      if (newsResponse.ok) {
+        const newsData = await newsResponse.json();
+        setApiNews(newsData);
+      }
+
+      // Fetch Reddit sentiment (employee sentiment)
+      const sentimentResponse = await fetch(`/api/reddit-sentiment?company=${encodeURIComponent(companyName)}`);
+      if (sentimentResponse.ok) {
+        const sentimentData = await sentimentResponse.json();
+        setApiSentiment(sentimentData);
+      }
+
+      // Fetch job postings
+      const jobsResponse = await fetch(`/api/jobs?company=${encodeURIComponent(companyName)}`);
+      if (jobsResponse.ok) {
+        const jobsData = await jobsResponse.json();
+        setApiJobs(jobsData);
+      }
+    } catch (error) {
+      console.error('Error fetching real data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data when company changes or when switching to real data
+  useEffect(() => {
+    if (useRealData) {
+      fetchRealData();
+    }
+  }, [selectedCompany, useRealData]);
+
   const handleAddCompany = () => {
     if (newCompanyName.trim() && newCompanyTicker.trim()) {
       const newId = newCompanyName.toLowerCase().replace(/\s+/g, '-');
@@ -302,7 +352,13 @@ const BrandSentimentTracker = () => {
     }
   };
 
-  const currentData = mockData[selectedCompany] || mockData.meta;
+  // Use API data if available and real data is enabled, otherwise use mock data
+  const currentData = useRealData && apiNews && apiSentiment ? {
+    news: apiNews.news || [],
+    employeeSentiment: apiSentiment.employeeSentiment || mockData[selectedCompany]?.employeeSentiment,
+    externalSentiment: apiNews.externalSentiment || mockData[selectedCompany]?.externalSentiment
+  } : (mockData[selectedCompany] || mockData.meta);
+
   const currentStock = stockData[selectedCompany] || stockData.meta;
   const currentCompany = companies.find(c => c.id === selectedCompany);
   const currentTimeRange = timeRanges.find(t => t.value === timeRange);
@@ -398,7 +454,9 @@ const BrandSentimentTracker = () => {
     URL.revokeObjectURL(url);
   };
 
-  const filteredJobs = (jobPostings[selectedCompany] || []).filter(
+  // Use API jobs if available and real data is enabled
+  const currentJobs = useRealData && apiJobs ? apiJobs.jobs : (jobPostings[selectedCompany] || []);
+  const filteredJobs = currentJobs.filter(
     (job: any) => selectedJobType === 'All' || job.type === selectedJobType
   );
 
@@ -407,10 +465,31 @@ const BrandSentimentTracker = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            Brand Sentiment Tracker
-          </h1>
-          <p className="text-gray-400">Real-time monitoring of brand reputation across news, employees, and public sentiment</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                Brand Sentiment Tracker
+              </h1>
+              <p className="text-gray-400">Real-time monitoring of brand reputation across news, employees, and public sentiment</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setUseRealData(!useRealData);
+                  if (!useRealData) fetchRealData();
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  useRealData
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                }`}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {useRealData ? 'Live Data' : 'Demo Data'}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Company Selector and Controls */}
@@ -655,7 +734,7 @@ const BrandSentimentTracker = () => {
                 <h2 className="text-2xl font-semibold">Latest News</h2>
               </div>
               <div className="grid gap-4">
-                {currentData.news.map((item, idx) => (
+                {currentData.news.map((item: any, idx: number) => (
                   <a
                     key={idx}
                     href={item.url}
@@ -716,7 +795,7 @@ const BrandSentimentTracker = () => {
                 </div>
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-300 mb-2">Key Highlights:</div>
-                  {currentData.employeeSentiment.highlights.map((highlight, idx) => (
+                  {currentData.employeeSentiment.highlights.map((highlight: string, idx: number) => (
                     <div key={idx} className="flex items-center text-gray-400">
                       <div className="w-1.5 h-1.5 bg-purple-400 rounded-full mr-2"></div>
                       <span className="text-sm">{highlight}</span>
@@ -744,7 +823,7 @@ const BrandSentimentTracker = () => {
                 </div>
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-gray-300 mb-2">Key Highlights:</div>
-                  {currentData.externalSentiment.highlights.map((highlight, idx) => (
+                  {currentData.externalSentiment.highlights.map((highlight: string, idx: number) => (
                     <div key={idx} className="flex items-center text-gray-400">
                       <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full mr-2"></div>
                       <span className="text-sm">{highlight}</span>
@@ -779,7 +858,7 @@ const BrandSentimentTracker = () => {
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredJobs.map(job => (
+                {filteredJobs.map((job: any) => (
                   <div key={job.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors">
                     <div className="flex items-start justify-between mb-3">
                       <h3 className="text-lg font-semibold text-gray-100">{job.title}</h3>
