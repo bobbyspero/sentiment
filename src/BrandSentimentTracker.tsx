@@ -73,8 +73,8 @@ const BrandSentimentTracker = () => {
   const mockData: {
     [key: string]: {
       news: Array<{ title: string; sentiment: string; date: string; source: string; url?: string }>;
-      employeeSentiment: { score: number; trend: string; reviews: number; highlights: string[] };
-      externalSentiment: { score: number; trend: string; mentions: number; highlights: string[] };
+      employeeSentiment: { score: number; trend: string; reviews: number; pros: string[]; cons: string[] };
+      externalSentiment: { score: number; trend: string; mentions: number; pros: string[]; cons: string[] };
     }
   } = {
     meta: {
@@ -88,13 +88,15 @@ const BrandSentimentTracker = () => {
         score: 72,
         trend: 'up',
         reviews: 1247,
-        highlights: ['Good work-life balance', 'Innovative culture', 'Competitive compensation']
+        pros: ['Good work-life balance', 'Innovative culture', 'Competitive compensation'],
+        cons: ['Fast-paced environment', 'High expectations']
       },
       externalSentiment: {
         score: 58,
         trend: 'neutral',
         mentions: 15420,
-        highlights: ['Privacy concerns persist', 'Strong product innovation', 'Mixed user reviews']
+        pros: ['Strong product innovation', 'Leading AI technology'],
+        cons: ['Privacy concerns persist', 'Mixed user reviews']
       }
     },
     google: {
@@ -108,13 +110,15 @@ const BrandSentimentTracker = () => {
         score: 78,
         trend: 'up',
         reviews: 2891,
-        highlights: ['Excellent benefits', 'Smart colleagues', 'Great learning opportunities']
+        pros: ['Excellent benefits', 'Smart colleagues', 'Great learning opportunities'],
+        cons: ['Bureaucratic processes', 'Slow decision making']
       },
       externalSentiment: {
         score: 65,
         trend: 'up',
         mentions: 28340,
-        highlights: ['Leading in AI innovation', 'Antitrust concerns', 'Reliable products']
+        pros: ['Leading in AI innovation', 'Reliable products'],
+        cons: ['Antitrust concerns', 'Data privacy issues']
       }
     },
     apple: {
@@ -128,13 +132,15 @@ const BrandSentimentTracker = () => {
         score: 75,
         trend: 'neutral',
         reviews: 1956,
-        highlights: ['Strong brand reputation', 'Demanding work culture', 'Good compensation']
+        pros: ['Strong brand reputation', 'Good compensation', 'Cutting-edge technology'],
+        cons: ['Demanding work culture', 'Long hours', 'High pressure']
       },
       externalSentiment: {
         score: 71,
         trend: 'up',
         mentions: 32100,
-        highlights: ['Premium brand image', 'High customer loyalty', 'Price concerns']
+        pros: ['Premium brand image', 'High customer loyalty', 'Quality products'],
+        cons: ['Price concerns', 'Repair restrictions']
       }
     },
     amazon: {
@@ -148,13 +154,15 @@ const BrandSentimentTracker = () => {
         score: 62,
         trend: 'down',
         reviews: 3421,
-        highlights: ['Competitive pay', 'High-pressure environment', 'Good career growth']
+        pros: ['Competitive pay', 'Good career growth', 'Innovation opportunities'],
+        cons: ['High-pressure environment', 'Work-life balance issues', 'Demanding quotas']
       },
       externalSentiment: {
         score: 63,
         trend: 'neutral',
         mentions: 41200,
-        highlights: ['Convenient service', 'Labor concerns', 'Market dominance']
+        pros: ['Convenient service', 'Fast delivery', 'Wide selection'],
+        cons: ['Labor concerns', 'Market dominance criticism']
       }
     },
     microsoft: {
@@ -168,13 +176,15 @@ const BrandSentimentTracker = () => {
         score: 81,
         trend: 'up',
         reviews: 2134,
-        highlights: ['Excellent work culture', 'Strong leadership', 'Flexible remote work']
+        pros: ['Excellent work culture', 'Strong leadership', 'Flexible remote work'],
+        cons: ['Some legacy processes', 'Occasional reorganizations']
       },
       externalSentiment: {
         score: 73,
         trend: 'up',
         mentions: 19800,
-        highlights: ['Enterprise trust', 'AI innovation leader', 'Strong ecosystem']
+        pros: ['Enterprise trust', 'AI innovation leader', 'Strong ecosystem'],
+        cons: ['Gaming division concerns', 'AI ethics questions']
       }
     },
     tesla: {
@@ -188,13 +198,15 @@ const BrandSentimentTracker = () => {
         score: 68,
         trend: 'neutral',
         reviews: 1689,
-        highlights: ['Mission-driven work', 'Fast-paced environment', 'Long working hours']
+        pros: ['Mission-driven work', 'Cutting-edge technology', 'Impact on sustainability'],
+        cons: ['Long working hours', 'Work-life balance', 'High stress']
       },
       externalSentiment: {
         score: 61,
         trend: 'down',
         mentions: 38900,
-        highlights: ['Innovation leader', 'Polarizing CEO', 'Quality concerns']
+        pros: ['Innovation leader', 'Environmental impact', 'Technology advancement'],
+        cons: ['Quality concerns', 'Polarizing CEO', 'Service issues']
       }
     }
   };
@@ -297,6 +309,13 @@ const BrandSentimentTracker = () => {
     }
   }, [selectedCompany, useRealData]);
 
+  // Sync selectedCompanies with selectedCompany when not in comparison mode
+  useEffect(() => {
+    if (!comparisonMode) {
+      setSelectedCompanies([selectedCompany]);
+    }
+  }, [selectedCompany, comparisonMode]);
+
   const handleAddCompany = () => {
     if (newCompanyName.trim() && newCompanyTicker.trim()) {
       const newId = newCompanyName.toLowerCase().replace(/\s+/g, '-');
@@ -314,13 +333,15 @@ const BrandSentimentTracker = () => {
           score: 0,
           trend: 'neutral',
           reviews: 0,
-          highlights: ['Data not yet available']
+          pros: ['Data not yet available'],
+          cons: []
         },
         externalSentiment: {
           score: 0,
           trend: 'neutral',
           mentions: 0,
-          highlights: ['Data not yet available']
+          pros: ['Data not yet available'],
+          cons: []
         }
       };
 
@@ -473,21 +494,29 @@ const BrandSentimentTracker = () => {
               <p className="text-gray-400">Real-time monitoring of brand reputation across news, employees, and public sentiment</p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setUseRealData(!useRealData);
-                  if (!useRealData) fetchRealData();
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  useRealData
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
-                }`}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                {useRealData ? 'Live Data' : 'Demo Data'}
-              </button>
+              <div className="flex items-center gap-3 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2">
+                <span className={`text-sm font-medium ${!useRealData ? 'text-gray-300' : 'text-gray-500'}`}>Demo</span>
+                <button
+                  onClick={() => {
+                    setUseRealData(!useRealData);
+                    if (!useRealData) fetchRealData();
+                  }}
+                  disabled={loading}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                    useRealData ? 'bg-green-600' : 'bg-gray-600'
+                  } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useRealData ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm font-medium flex items-center gap-1 ${useRealData ? 'text-green-400' : 'text-gray-500'}`}>
+                  {loading && <RefreshCw className="w-3 h-3 animate-spin" />}
+                  Live
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -793,14 +822,29 @@ const BrandSentimentTracker = () => {
                   </div>
                   {getTrendIcon(currentData.employeeSentiment.trend)}
                 </div>
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-300 mb-2">Key Highlights:</div>
-                  {currentData.employeeSentiment.highlights.map((highlight: string, idx: number) => (
-                    <div key={idx} className="flex items-center text-gray-400">
-                      <div className="w-1.5 h-1.5 bg-purple-400 rounded-full mr-2"></div>
-                      <span className="text-sm">{highlight}</span>
+                <div className="space-y-3">
+                  {currentData.employeeSentiment.pros.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-green-400 mb-2">Pros:</div>
+                      {currentData.employeeSentiment.pros.map((pro: string, idx: number) => (
+                        <div key={idx} className="flex items-center text-gray-300 mb-1">
+                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-2"></div>
+                          <span className="text-sm">{pro}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {currentData.employeeSentiment.cons.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-red-400 mb-2">Cons:</div>
+                      {currentData.employeeSentiment.cons.map((con: string, idx: number) => (
+                        <div key={idx} className="flex items-center text-gray-300 mb-1">
+                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                          <span className="text-sm">{con}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -821,14 +865,29 @@ const BrandSentimentTracker = () => {
                   </div>
                   {getTrendIcon(currentData.externalSentiment.trend)}
                 </div>
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-300 mb-2">Key Highlights:</div>
-                  {currentData.externalSentiment.highlights.map((highlight: string, idx: number) => (
-                    <div key={idx} className="flex items-center text-gray-400">
-                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full mr-2"></div>
-                      <span className="text-sm">{highlight}</span>
+                <div className="space-y-3">
+                  {currentData.externalSentiment.pros.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-green-400 mb-2">Pros:</div>
+                      {currentData.externalSentiment.pros.map((pro: string, idx: number) => (
+                        <div key={idx} className="flex items-center text-gray-300 mb-1">
+                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-2"></div>
+                          <span className="text-sm">{pro}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {currentData.externalSentiment.cons.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-red-400 mb-2">Cons:</div>
+                      {currentData.externalSentiment.cons.map((con: string, idx: number) => (
+                        <div key={idx} className="flex items-center text-gray-300 mb-1">
+                          <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></div>
+                          <span className="text-sm">{con}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
